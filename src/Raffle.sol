@@ -1,4 +1,26 @@
+/* Layout of Contract:
+ version
+ imports
+ errors
+ interfaces, libraries, contracts
+ Type declarations
+ State variables
+ Events
+ Modifiers
+ Functions
+
+ Layout of Functions:
+ constructor
+ receive function (if exists)
+ fallback function (if exists)
+ external
+ public
+ internal
+ private
+ view & pure functions
+*/
 //SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
 /**
@@ -11,7 +33,14 @@ pragma solidity ^0.8.0;
  */
 
 contract Raffle {
-    uint256 private immutable i_entranceFee;
+    /* Errors */
+    error Raffle__NotEnoughETHEntered();
+
+    /* State Variables */
+    uint256 private immutable i_entranceFee; // The fee required to enter the raffle
+
+    /* Events */
+    event RaffleEntered(address indexed player);
 
     constructor(uint256 _entranceFee) {
         i_entranceFee = _entranceFee;
@@ -19,6 +48,10 @@ contract Raffle {
 
     function enterRaffle() external payable {
         // Function to allow users to enter the raffle by paying a fee
+        if (msg.value < i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        emit RaffleEntered(msg.sender);
     }
 
     function pickWinner() external {
