@@ -8,7 +8,11 @@ out/
 /broadcast/**/dry-run/
 
 # Docs
+lib/
 docs/
 
 # Dotenv file
 .env
+
+#gas-reports
+.gas-snapshot
