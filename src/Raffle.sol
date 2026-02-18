@@ -23,6 +23,9 @@
 
 pragma solidity ^0.8.0;
 
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
 /**
  * @title Raffle
  * @author 0xMasky
@@ -32,18 +35,38 @@ pragma solidity ^0.8.0;
  *         It includes functions for entering the raffle, selecting a winner, and withdrawing funds.
  */
 
-contract Raffle {
+contract Raffle is VRFConsumerBaseV2Plus {
     /* Errors */
     error Raffle__NotEnoughETHEntered();
+    error Raffle__IntervalNotPassed();
 
     /* State Variables */
+    uint16 private constant REQUEST_CONFIRMATIONS = 3; // Number of confirmations for Chainlink VRF
+    uint32 private constant NUM_WORDS = 1; // Number of random words to request from Chainlink VRF
     uint256 private immutable i_entranceFee; // The fee required to enter the raffle
-
+    uint256 private immutable i_interval; // Time interval for selecting a winner
+    bytes32 private immutable i_keyHash; // Key hash for Chainlink VRF
+    uint256 private immutable i_subscriptionId; // Subscription ID for Chainlink VRF
+    uint32 private immutable i_callbackGasLimit; // Gas limit for the callback function
+    address payable[] private s_players; // List of players who have entered the raffle
+    uint256 private s_lastTimeStamp; // Timestamp of the last winner selection
     /* Events */
     event RaffleEntered(address indexed player);
 
-    constructor(uint256 _entranceFee) {
+    constructor(
+        uint256 _entranceFee,
+        uint256 _interval,
+        address vrfCoordinator,
+        bytes32 _keyHash,
+        uint256 _subscriptionId,
+        uint32 _callbackGasLimit
+    ) VRFConsumerBaseV2Plus(vrfCoordinator) {
         i_entranceFee = _entranceFee;
+        i_subscriptionId = _subscriptionId;
+        i_interval = _interval;
+        i_callbackGasLimit = _callbackGasLimit;
+        i_keyHash = _keyHash;
+        s_lastTimeStamp = block.timestamp;
     }
 
     function enterRaffle() external payable {
@@ -55,7 +78,24 @@ contract Raffle {
     }
 
     function pickWinner() external {
+        if (block.timestamp - s_lastTimeStamp < i_interval) {
+            revert Raffle__IntervalNotPassed();
+        }
         // Function to select a winner using Chainlink VRF
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+            VRFV2PlusClient.RandomWordsRequest({
+                keyHash: i_keyHash,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+            })
+        );
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
+        // Function to handle the random words returned by Chainlink VRF and select a winner
     }
 
     // Getter functions
