@@ -39,6 +39,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     /* Errors */
     error Raffle__NotEnoughETHEntered();
     error Raffle__IntervalNotPassed();
+    error Raffle__TransferFailed();
 
     /* State Variables */
     uint16 private constant REQUEST_CONFIRMATIONS = 3; // Number of confirmations for Chainlink VRF
@@ -49,6 +50,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     uint256 private immutable i_subscriptionId; // Subscription ID for Chainlink VRF
     uint32 private immutable i_callbackGasLimit; // Gas limit for the callback function
     address payable[] private s_players; // List of players who have entered the raffle
+    address private s_recentWinner; // The most recent winner of the raffle
     uint256 private s_lastTimeStamp; // Timestamp of the last winner selection
     /* Events */
     event RaffleEntered(address indexed player);
@@ -96,6 +98,13 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         // Function to handle the random words returned by Chainlink VRF and select a winner
+        uint256 winnerIndex = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[winnerIndex];
+        s_recentWinner = recentWinner;
+        (bool success,) = recentWinner.call{value: address(this).balance}("");
+        if (!success) {
+            revert Raffle__TransferFailed();
+        }
     }
 
     // Getter functions
