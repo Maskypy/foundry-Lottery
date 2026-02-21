@@ -41,6 +41,8 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__IntervalNotPassed();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
+    error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
+
     /* Type Declarations */
     enum RaffleState {
         OPEN,
@@ -100,9 +102,9 @@ contract Raffle is VRFConsumerBaseV2Plus {
      *         upkeep is needed.
      */
     function checkUpkeep(
-        bytes calldata /* checkData */
+        bytes memory /* checkData */
     )
-        external
+        public
         view
         returns (
             bool upkeepNeeded,
@@ -117,9 +119,15 @@ contract Raffle is VRFConsumerBaseV2Plus {
         upkeepNeeded = (isOpen && timePassed && hasPlayers && hasBalance);
     }
 
-    function pickWinner() external {
-        if (block.timestamp - s_lastTimeStamp < i_interval) {
-            revert Raffle__IntervalNotPassed();
+    function performUpkeep(
+        bytes calldata /* performData */
+    )
+        external
+    {
+        // Check if upkeep is needed before performing the upkeep to select a winner
+        (bool upkeepNeeded,) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
         s_raffleState = RaffleState.CALCULATING;
         // Request random words from Chainlink VRF to select a winner
