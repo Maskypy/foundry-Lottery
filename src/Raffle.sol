@@ -93,6 +93,30 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
 
+    /**
+     *     @notice This function is called by Chainlink Keepers to check if it's time to select a winner.
+     *     @dev It checks if the raffle is open, if the time interval has passed, if there are players in the raffle,
+     *         and if there is a balance to be won. If all conditions are met, it returns true to indicate that
+     *         upkeep is needed.
+     */
+    function checkUpkeep(
+        bytes calldata /* checkData */
+    )
+        external
+        view
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        // Check if it's time to select a winner and if there are players in the raffle
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayers = (s_players.length > 0);
+        bool hasBalance = (address(this).balance > 0);
+        upkeepNeeded = (isOpen && timePassed && hasPlayers && hasBalance);
+    }
+
     function pickWinner() external {
         if (block.timestamp - s_lastTimeStamp < i_interval) {
             revert Raffle__IntervalNotPassed();
